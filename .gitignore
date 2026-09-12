@@ -9,3 +9,7 @@ artifacts
 .preset-recovery/
 release/
 *.zip
+
+.vercel/
+.vercel
+.env*

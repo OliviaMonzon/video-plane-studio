@@ -2562,7 +2562,7 @@ function App() {
       setMidiStatus(grid ? `${grid.name} connected` : inputs.length > 0 ? `${inputs[0].name ?? "MIDI controller"} connected` : "Grid controller not connected");
     };
 
-    if (!window.studioShell) {
+    if (!window.studioShell && ["localhost", "127.0.0.1"].includes(window.location.hostname)) {
       const eventSource = new EventSource("http://127.0.0.1:5174/events");
       eventSource.addEventListener("status", () => setMidiStatus("Grid connected through desktop app"));
       eventSource.addEventListener("midi", (event) => {
@@ -2577,7 +2577,7 @@ function App() {
     }
 
     if (!navigator.requestMIDIAccess) {
-      setMidiStatus("MIDI is unavailable in the desktop runtime");
+      setMidiStatus("MIDI is unavailable in this browser");
       return;
     }
 

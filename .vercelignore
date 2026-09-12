@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-electron/
+release/
+artifacts/
+.pnpm-store/
+.preset-recovery/
+*.zip
+*.tsbuildinfo
+.DS_Store
