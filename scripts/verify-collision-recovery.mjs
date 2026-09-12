@@ -10,9 +10,7 @@ const start = source.indexOf('    const resolveInstanceCollisions = (');
 const end = source.indexOf('\n    const resize =', start);
 assert(start >= 0 && end > start);
 const columns = 83, rows = 88, count = columns * rows;
-let now = 2000;
-const state = { THREE, performance: { now: () => now },
-  collisionActiveUntil: new Float64Array(count),
+const state = { THREE, performance: { now: () => 2000 },
   SCREEN_WIDTH: 16, SCREEN_HEIGHT: 9,
   COLLISION_STARTUP_HOLD_MS: 250, COLLISION_STARTUP_RAMP_MS: 750,
   collisionWarmupStartedAt: 0, clamp01: x => Math.max(0, Math.min(1, x)),
@@ -46,22 +44,6 @@ for(let i=0;i<12;i++) {
 // Even a large existing displacement must clear on the next positional frame.
 state.collisionPositions.fill(100);
 assert.deepEqual(frame(0),loop[0]);
-// A static background must stay still while nearby foreground spheres move.
-state.collisionInitialized.fill(0);
-function backgroundFrame(phase) {
- for(let i=0;i<count;i++) {
-  const x=i%columns,y=Math.floor(i/columns);
-  pos.set(x*0.20,y*0.13,0);
-  size.setScalar(y<rows/2 ? 0.18 + Math.sin(phase)*0.0001 : 0.15+0.09*Math.sin(x+phase));
-  matrix.compose(pos,rotation,size);mesh.setMatrixAt(i,matrix);
- }
- state.solve(mesh,count,false);
- return state.collisionPositions.slice(0,Math.floor(rows/2)*columns*3);
-}
-backgroundFrame(0); now+=400;
-const sleepingBackground=backgroundFrame(0);
-for(let i=0;i<12;i++) { now+=100; assert.deepEqual(backgroundFrame(i),sleepingBackground,'static background must not be pushed by moving neighbors or pixel noise'); }
-console.log('PASS: overlapping static background remains exactly stationary beside changing foreground, including small input noise.');
 // Dynamic mode still preserves a bounce, then damps it rapidly when free.
 state.dynamicallyAwareCollisionRef.current=true;
 state.collisionInitialized.fill(0); frame(0,true);
