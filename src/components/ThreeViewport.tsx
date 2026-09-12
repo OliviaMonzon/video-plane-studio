@@ -1217,6 +1217,7 @@ export function ThreeViewport({
     let collisionAudioMotion = new Float32Array(dotColumnsRef.current * dotRowsRef.current);
     let collisionImpulseCooldown = new Uint8Array(dotColumnsRef.current * dotRowsRef.current);
     let collisionInitialized = new Uint8Array(dotColumnsRef.current * dotRowsRef.current);
+    let collisionActiveUntil = new Float64Array(dotColumnsRef.current * dotRowsRef.current);
     let collisionsWereEnabled = false;
     let collisionWarmupStartedAt = performance.now();
     let lastAudioWaveColumns = dotColumnsRef.current;
@@ -1255,6 +1256,7 @@ export function ThreeViewport({
       collisionAudioMotion = new Float32Array(columns * rows);
       collisionImpulseCooldown = new Uint8Array(columns * rows);
       collisionInitialized = new Uint8Array(columns * rows);
+      collisionActiveUntil = new Float64Array(columns * rows);
       collisionWarmupStartedAt = performance.now();
       lastAudioWaveColumns = columns;
       lastAudioWaveRows = rows;
@@ -1326,15 +1328,36 @@ export function ThreeViewport({
             (collisionWarmupElapsed - COLLISION_STARTUP_HOLD_MS) / COLLISION_STARTUP_RAMP_MS,
           );
       const homeAttraction = collisionStrength < 1 ? 0.58 : 0.34;
+      const now = performance.now();
+      const inputTolerance = minimumColliderRadius * 0.15;
+      const settleMs = 350;
 
       for (let index = 0; index < count; index += 1) {
         dotGrid.getMatrixAt(index, matrix);
         matrix.decompose(position, quaternion, scale);
         const offset = index * 3;
+        const radius = Math.max(Math.max(scale.x, scale.y, scale.z) * 0.56, minimumColliderRadius);
+        // Resting video pixels are anchored. Overlap alone must never wake them:
+        // only a meaningful change in their own source transform can do that.
+        const inputChanged = !collisionInitialized[index]
+          || Math.abs(position.x - collisionTargets[offset]) > inputTolerance
+          || Math.abs(position.y - collisionTargets[offset + 1]) > inputTolerance
+          || Math.abs(position.z - collisionTargets[offset + 2]) > Math.max(inputTolerance, radius * 0.08)
+          || Math.abs(radius - collisionRadii[index]) > Math.max(inputTolerance, radius * 0.08)
+          || collisionColorMotion[index] > 0
+          || collisionAudioMotion[index] > 0;
+        if (inputChanged || collisionStrength < 1 || skipStartupWarmup) {
+          collisionActiveUntil[index] = now + settleMs;
+        }
+        const sleeping = collisionInitialized[index] && now >= collisionActiveUntil[index];
         collisionTargets[offset] = position.x;
         collisionTargets[offset + 1] = position.y;
         collisionTargets[offset + 2] = position.z;
-        if (!collisionInitialized[index]) {
+        if (sleeping) {
+          collisionVelocities[offset] = 0;
+          collisionVelocities[offset + 1] = 0;
+          collisionVelocities[offset + 2] = 0;
+        } else if (!collisionInitialized[index]) {
           collisionPositions[offset] = position.x;
           collisionPositions[offset + 1] = position.y;
           collisionPositions[offset + 2] = position.z;
@@ -1370,7 +1393,6 @@ export function ThreeViewport({
           collisionPositions[offset + 1] += (position.y - collisionPositions[offset + 1]) * homeAttraction;
           collisionPositions[offset + 2] += (position.z - collisionPositions[offset + 2]) * homeAttraction;
         }
-        const radius = Math.max(Math.max(scale.x, scale.y, scale.z) * 0.56, minimumColliderRadius);
         collisionRadii[index] = radius;
         maximumRadius = Math.max(maximumRadius, radius);
       }
@@ -1399,6 +1421,10 @@ export function ThreeViewport({
 
               for (const neighborIndex of neighbors) {
                 const neighborOffset = neighborIndex * 3;
+                const indexWeight = now < collisionActiveUntil[index] ? 1 : 0;
+                const neighborWeight = now < collisionActiveUntil[neighborIndex] ? 1 : 0;
+                const totalWeight = indexWeight + neighborWeight;
+                if (!totalWeight) continue;
                 // Earlier neighbors may already have moved this sphere.
                 // Use its current position to avoid compounding stale pushes.
                 let deltaX = collisionPositions[offset] - collisionPositions[neighborOffset];
@@ -1417,16 +1443,16 @@ export function ThreeViewport({
                   distance = Math.hypot(deltaX, deltaY, deltaZ);
                 }
 
-                const correction = ((minimumDistance - distance) / 2) * collisionStrength;
+                const correction = ((minimumDistance - distance) / totalWeight) * collisionStrength;
                 const pushX = (deltaX / distance) * correction;
                 const pushY = (deltaY / distance) * correction;
                 const pushZ = (deltaZ / distance) * correction;
-                collisionPositions[offset] += pushX;
-                collisionPositions[offset + 1] += pushY;
-                collisionPositions[offset + 2] += pushZ;
-                collisionPositions[neighborOffset] -= pushX;
-                collisionPositions[neighborOffset + 1] -= pushY;
-                collisionPositions[neighborOffset + 2] -= pushZ;
+                collisionPositions[offset] += pushX * indexWeight;
+                collisionPositions[offset + 1] += pushY * indexWeight;
+                collisionPositions[offset + 2] += pushZ * indexWeight;
+                collisionPositions[neighborOffset] -= pushX * neighborWeight;
+                collisionPositions[neighborOffset + 1] -= pushY * neighborWeight;
+                collisionPositions[neighborOffset + 2] -= pushZ * neighborWeight;
                 // Dynamic collision is an occasional impulse, not a force that
                 // is reapplied on every collision pass. A short cooldown and
                 // motion threshold stop static or slow footage from vibrating.
@@ -1434,6 +1460,7 @@ export function ThreeViewport({
                   pass === 0
                   && collisionStrength >= 1
                   && dynamicallyAwareCollisionRef.current
+                  && indexWeight && neighborWeight
                   && !collisionImpulseCooldown[index]
                   && !collisionImpulseCooldown[neighborIndex]
                 ) {
@@ -1559,6 +1586,13 @@ export function ThreeViewport({
         currentVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
         currentVideo.videoWidth > 0 &&
         currentVideo.videoHeight > 0;
+      // A loop/seek can briefly have no decoded frame. Keep the last image;
+      // replacing it with the idle graphic creates false motion across the
+      // entire background and repeatedly wakes resting collisions.
+      if (shouldShowVideoFrame && !canUseImage && currentVideo
+        && (currentVideo.src || currentVideo.srcObject) && !canUseVideo) {
+        return;
+      }
       const videoCurveLookup = videoCurveLookupRef.current;
       const useGrayscale = grayscaleVideoRef.current;
 
