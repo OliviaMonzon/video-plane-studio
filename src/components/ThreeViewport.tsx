@@ -26,6 +26,7 @@ export type GradientStop = {
 };
 
 type ThreeViewportProps = {
+  presetOneReference: boolean;
   audioBackgroundColor: string;
   audioEffectIntensity: number;
   environmentIntensity: number;
@@ -561,15 +562,18 @@ const getSymbolMetrics = (
   luminositySizing: boolean,
   flatSymbols: boolean,
   luminosityZSeparation: number,
+  referenceLayout = false,
 ): SymbolMetrics => {
   const baseCellWidth = SCREEN_WIDTH / columns;
   const baseCellHeight = SCREEN_HEIGHT / rows;
   // Symbol size and grid spacing are independent controls. Spacing changes
   // only the distance between instance centers; it must never resize them.
-  const baseSymbolSize = Math.hypot(baseCellWidth, baseCellHeight) * 1.18 * uniformScale;
+  const baseSymbolSize = referenceLayout
+    ? ((Math.hypot(baseCellWidth, baseCellHeight) * 1.18) / Math.max(0.35, spacing)) * uniformScale
+    : Math.hypot(baseCellWidth, baseCellHeight) * 1.18 * uniformScale;
   // Preserve the established 175% opening-preset footprint while allowing
   // lower values to gather toward the center and higher values to spread out.
-  const gridSpread = 0.5 + Math.max(0, spacing) / 3.5;
+  const gridSpread = referenceLayout ? 1 : 0.5 + Math.max(0, spacing) / 3.5;
   const luminanceScale = luminositySizing ? 0.34 + luminance * 1.24 : 1;
   const symbolSize = baseSymbolSize * luminanceScale;
   const depthScale = flatSymbols ? 0.08 : 1;
@@ -586,12 +590,15 @@ const getSymbolMetrics = (
     samePlaneOffset,
     symbolSize,
     x: (baseCellWidth * (column + 0.5) - SCREEN_WIDTH / 2) * gridSpread,
-    y: SCREEN_CENTER_Y + (SCREEN_HEIGHT / 2 - baseCellHeight * (row + 0.5)) * gridSpread,
+    y: referenceLayout
+      ? SCREEN_CENTER_Y + SCREEN_HEIGHT / 2 - baseCellHeight * (row + 0.5)
+      : SCREEN_CENTER_Y + (SCREEN_HEIGHT / 2 - baseCellHeight * (row + 0.5)) * gridSpread,
     z: SCREEN_Z + samePlaneOffset + luminosityDepth,
   };
 };
 
 export function ThreeViewport({
+  presetOneReference,
   audioBackgroundColor,
   audioEffectIntensity,
   environmentIntensity,
@@ -680,6 +687,8 @@ export function ThreeViewport({
   const fillLightIntensityRef = useRef(fillLightIntensity);
   const hdriMapUrlRef = useRef(hdriMapUrl);
   const showHdriBackgroundRef = useRef(showHdriBackground);
+  const presetOneReferenceRef = useRef(presetOneReference);
+  useLayoutEffect(() => { presetOneReferenceRef.current = presetOneReference; }, [presetOneReference]);
   const collisionsEnabledRef = useRef(collisionsEnabled);
   const dynamicallyAwareCollisionRef = useRef(dynamicallyAwareCollision);
   const dynamicCollisionResponseRef = useRef(dynamicCollisionResponse);
@@ -1167,6 +1176,7 @@ export function ThreeViewport({
         luminositySizingRef.current,
         flatSymbolsRef.current,
         luminosityZSeparationRef.current,
+        presetOneReferenceRef.current,
       );
 
       const audioScale = 1 + audioVisualWave * 1.45;
@@ -1217,6 +1227,7 @@ export function ThreeViewport({
     let collisionAudioMotion = new Float32Array(dotColumnsRef.current * dotRowsRef.current);
     let collisionImpulseCooldown = new Uint8Array(dotColumnsRef.current * dotRowsRef.current);
     let collisionInitialized = new Uint8Array(dotColumnsRef.current * dotRowsRef.current);
+    let collisionActiveUntil = new Float64Array(dotColumnsRef.current * dotRowsRef.current);
     let collisionsWereEnabled = false;
     let collisionWarmupStartedAt = performance.now();
     let lastAudioWaveColumns = dotColumnsRef.current;
@@ -1255,6 +1266,7 @@ export function ThreeViewport({
       collisionAudioMotion = new Float32Array(columns * rows);
       collisionImpulseCooldown = new Uint8Array(columns * rows);
       collisionInitialized = new Uint8Array(columns * rows);
+      collisionActiveUntil = new Float64Array(columns * rows);
       collisionWarmupStartedAt = performance.now();
       lastAudioWaveColumns = columns;
       lastAudioWaveRows = rows;
@@ -1326,6 +1338,209 @@ export function ThreeViewport({
             (collisionWarmupElapsed - COLLISION_STARTUP_HOLD_MS) / COLLISION_STARTUP_RAMP_MS,
           );
       const homeAttraction = collisionStrength < 1 ? 0.58 : 0.34;
+      const now = performance.now();
+      const inputTolerance = minimumColliderRadius * 0.15;
+      const settleMs = 350;
+
+      for (let index = 0; index < count; index += 1) {
+        dotGrid.getMatrixAt(index, matrix);
+        matrix.decompose(position, quaternion, scale);
+        const offset = index * 3;
+        const radius = Math.max(Math.max(scale.x, scale.y, scale.z) * 0.56, minimumColliderRadius);
+        // Resting video pixels are anchored. Overlap alone must never wake them:
+        // only a meaningful change in their own source transform can do that.
+        const inputChanged = !collisionInitialized[index]
+          || Math.abs(position.x - collisionTargets[offset]) > inputTolerance
+          || Math.abs(position.y - collisionTargets[offset + 1]) > inputTolerance
+          || Math.abs(position.z - collisionTargets[offset + 2]) > Math.max(inputTolerance, radius * 0.08)
+          || Math.abs(radius - collisionRadii[index]) > Math.max(inputTolerance, radius * 0.08)
+          || collisionColorMotion[index] > 0
+          || collisionAudioMotion[index] > 0;
+        if (inputChanged || collisionStrength < 1 || skipStartupWarmup) {
+          collisionActiveUntil[index] = now + settleMs;
+        }
+        const sleeping = collisionInitialized[index] && now >= collisionActiveUntil[index];
+        collisionTargets[offset] = position.x;
+        collisionTargets[offset + 1] = position.y;
+        collisionTargets[offset + 2] = position.z;
+        if (sleeping) {
+          collisionVelocities[offset] = 0;
+          collisionVelocities[offset + 1] = 0;
+          collisionVelocities[offset + 2] = 0;
+        } else if (!collisionInitialized[index]) {
+          collisionPositions[offset] = position.x;
+          collisionPositions[offset + 1] = position.y;
+          collisionPositions[offset + 2] = position.z;
+          collisionInitialized[index] = 1;
+        } else if (skipStartupWarmup || !dynamicallyAwareCollisionRef.current) {
+          // Positional collision has no momentum: solve from this frame's home
+          // transforms so displacement cannot accumulate across video loops.
+          // Instant live audio follows the same rule.
+          collisionPositions[offset] = position.x;
+          collisionPositions[offset + 1] = position.y;
+          collisionPositions[offset + 2] = position.z;
+          collisionVelocities[offset] = 0;
+          collisionVelocities[offset + 1] = 0;
+          collisionVelocities[offset + 2] = 0;
+        } else {
+          if (dynamicallyAwareCollisionRef.current) {
+            collisionPositions[offset] += collisionVelocities[offset];
+            collisionPositions[offset + 1] += collisionVelocities[offset + 1];
+            collisionPositions[offset + 2] += collisionVelocities[offset + 2];
+            // Damping lets a triggered bounce settle instead of continually
+            // re-inheriting movement from the underlying video transform.
+            collisionVelocities[offset] *= 0.64;
+            collisionVelocities[offset + 1] *= 0.64;
+            collisionVelocities[offset + 2] *= 0.64;
+          } else {
+            collisionVelocities[offset] = 0;
+            collisionVelocities[offset + 1] = 0;
+            collisionVelocities[offset + 2] = 0;
+          }
+          // Grid, random, and audio transforms define a home target. Collision
+          // lives on top of that target and relaxes back toward it when free.
+          collisionPositions[offset] += (position.x - collisionPositions[offset]) * homeAttraction;
+          collisionPositions[offset + 1] += (position.y - collisionPositions[offset + 1]) * homeAttraction;
+          collisionPositions[offset + 2] += (position.z - collisionPositions[offset + 2]) * homeAttraction;
+        }
+        collisionRadii[index] = radius;
+        maximumRadius = Math.max(maximumRadius, radius);
+      }
+
+      const cellSize = Math.max(0.012, maximumRadius * 2);
+      const collisionPasses = 10;
+
+      // A few relaxation passes ensure both symbols move apart, rather than
+      // pushing only whichever one happened to be processed second.
+      for (let pass = 0; pass < collisionPasses; pass += 1) {
+        const buckets = new Map<string, number[]>();
+        for (let index = 0; index < count; index += 1) {
+          const offset = index * 3;
+          const x = collisionPositions[offset];
+          const y = collisionPositions[offset + 1];
+          const z = collisionPositions[offset + 2];
+          const cellX = Math.floor(x / cellSize);
+          const cellY = Math.floor(y / cellSize);
+
+          for (let yOffset = -1; yOffset <= 1; yOffset += 1) {
+            for (let xOffset = -1; xOffset <= 1; xOffset += 1) {
+              const neighbors = buckets.get(`${cellX + xOffset}:${cellY + yOffset}`);
+              if (!neighbors) {
+                continue;
+              }
+
+              for (const neighborIndex of neighbors) {
+                const neighborOffset = neighborIndex * 3;
+                const indexWeight = now < collisionActiveUntil[index] ? 1 : 0;
+                const neighborWeight = now < collisionActiveUntil[neighborIndex] ? 1 : 0;
+                const totalWeight = indexWeight + neighborWeight;
+                if (!totalWeight) continue;
+                // Earlier neighbors may already have moved this sphere.
+                // Use its current position to avoid compounding stale pushes.
+                let deltaX = collisionPositions[offset] - collisionPositions[neighborOffset];
+                let deltaY = collisionPositions[offset + 1] - collisionPositions[neighborOffset + 1];
+                let deltaZ = collisionPositions[offset + 2] - collisionPositions[neighborOffset + 2];
+                let distance = Math.hypot(deltaX, deltaY, deltaZ);
+                const minimumDistance = collisionRadii[index] + collisionRadii[neighborIndex];
+                if (distance >= minimumDistance) {
+                  continue;
+                }
+
+                if (distance < 0.0001) {
+                  deltaX = stableRandom(index, neighborIndex + 21) - 0.5;
+                  deltaY = stableRandom(index, neighborIndex + 31) - 0.5;
+                  deltaZ = stableRandom(index, neighborIndex + 41) - 0.5;
+                  distance = Math.hypot(deltaX, deltaY, deltaZ);
+                }
+
+                const correction = ((minimumDistance - distance) / totalWeight) * collisionStrength;
+                const pushX = (deltaX / distance) * correction;
+                const pushY = (deltaY / distance) * correction;
+                const pushZ = (deltaZ / distance) * correction;
+                collisionPositions[offset] += pushX * indexWeight;
+                collisionPositions[offset + 1] += pushY * indexWeight;
+                collisionPositions[offset + 2] += pushZ * indexWeight;
+                collisionPositions[neighborOffset] -= pushX * neighborWeight;
+                collisionPositions[neighborOffset + 1] -= pushY * neighborWeight;
+                collisionPositions[neighborOffset + 2] -= pushZ * neighborWeight;
+                // Dynamic collision is an occasional impulse, not a force that
+                // is reapplied on every collision pass. A short cooldown and
+                // motion threshold stop static or slow footage from vibrating.
+                if (
+                  pass === 0
+                  && collisionStrength >= 1
+                  && dynamicallyAwareCollisionRef.current
+                  && indexWeight && neighborWeight
+                  && !collisionImpulseCooldown[index]
+                  && !collisionImpulseCooldown[neighborIndex]
+                ) {
+                  const motion = Math.max(
+                    collisionColorMotion[index],
+                    collisionColorMotion[neighborIndex],
+                    collisionAudioMotion[index],
+                    collisionAudioMotion[neighborIndex],
+                  );
+                  if (motion > 0) {
+                    const impulse = motion * minimumDistance * 1.8 * dynamicCollisionResponseRef.current;
+                    const normalX = deltaX / distance;
+                    const normalY = deltaY / distance;
+                    const normalZ = deltaZ / distance;
+                    collisionVelocities[offset] += normalX * impulse;
+                    collisionVelocities[offset + 1] += normalY * impulse;
+                    collisionVelocities[offset + 2] += normalZ * impulse;
+                    collisionVelocities[neighborOffset] -= normalX * impulse;
+                    collisionVelocities[neighborOffset + 1] -= normalY * impulse;
+                    collisionVelocities[neighborOffset + 2] -= normalZ * impulse;
+                    const cooldownFrames = skipStartupWarmup ? 2 : 9;
+                    collisionImpulseCooldown[index] = cooldownFrames;
+                    collisionImpulseCooldown[neighborIndex] = cooldownFrames;
+                  }
+                }
+              }
+            }
+          }
+
+          const key = `${cellX}:${cellY}`;
+          const bucket = buckets.get(key);
+          if (bucket) {
+            bucket.push(index);
+          } else {
+            buckets.set(key, [index]);
+          }
+        }
+      }
+
+      for (let index = 0; index < count; index += 1) {
+        dotGrid.getMatrixAt(index, matrix);
+        matrix.decompose(position, quaternion, scale);
+        const offset = index * 3;
+        position.set(collisionPositions[offset], collisionPositions[offset + 1], collisionPositions[offset + 2]);
+        matrix.compose(position, quaternion, scale);
+        dotGrid.setMatrixAt(index, matrix);
+      }
+    };
+
+    const resolvePresetOneCollisions = (
+      dotGrid: THREE.InstancedMesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>,
+      count: number,
+      skipStartupWarmup: boolean,
+    ) => {
+      const matrix = new THREE.Matrix4();
+      const position = new THREE.Vector3();
+      const quaternion = new THREE.Quaternion();
+      const scale = new THREE.Vector3();
+      let maximumRadius = 0;
+      const minimumColliderRadius = Math.min(
+        SCREEN_WIDTH / Math.max(1, dotColumnsRef.current),
+        SCREEN_HEIGHT / Math.max(1, dotRowsRef.current),
+      ) * 0.12;
+      const collisionWarmupElapsed = performance.now() - collisionWarmupStartedAt;
+      const collisionStrength = skipStartupWarmup
+        ? 1
+        : clamp01(
+            (collisionWarmupElapsed - COLLISION_STARTUP_HOLD_MS) / COLLISION_STARTUP_RAMP_MS,
+          );
+      const homeAttraction = collisionStrength < 1 ? 0.58 : 0.34;
 
       for (let index = 0; index < count; index += 1) {
         dotGrid.getMatrixAt(index, matrix);
@@ -1339,10 +1554,10 @@ export function ThreeViewport({
           collisionPositions[offset + 1] = position.y;
           collisionPositions[offset + 2] = position.z;
           collisionInitialized[index] = 1;
-        } else if (skipStartupWarmup || !dynamicallyAwareCollisionRef.current) {
-          // Positional collision has no momentum: solve from this frame's home
-          // transforms so displacement cannot accumulate across video loops.
-          // Instant live audio follows the same rule.
+        } else if (skipStartupWarmup) {
+          // Instant live audio should return every instance to its current
+          // audio-driven home transform without inheriting the eased recovery
+          // and residual collision velocity used for video motion.
           collisionPositions[offset] = position.x;
           collisionPositions[offset + 1] = position.y;
           collisionPositions[offset + 2] = position.z;
@@ -1399,11 +1614,9 @@ export function ThreeViewport({
 
               for (const neighborIndex of neighbors) {
                 const neighborOffset = neighborIndex * 3;
-                // Earlier neighbors may already have moved this sphere.
-                // Use its current position to avoid compounding stale pushes.
-                let deltaX = collisionPositions[offset] - collisionPositions[neighborOffset];
-                let deltaY = collisionPositions[offset + 1] - collisionPositions[neighborOffset + 1];
-                let deltaZ = collisionPositions[offset + 2] - collisionPositions[neighborOffset + 2];
+                let deltaX = x - collisionPositions[neighborOffset];
+                let deltaY = y - collisionPositions[neighborOffset + 1];
+                let deltaZ = z - collisionPositions[neighborOffset + 2];
                 let distance = Math.hypot(deltaX, deltaY, deltaZ);
                 const minimumDistance = collisionRadii[index] + collisionRadii[neighborIndex];
                 if (distance >= minimumDistance) {
@@ -1507,6 +1720,7 @@ export function ThreeViewport({
     let animationFrame = 0;
     let lastColumns = dotColumnsRef.current;
     let lastRows = dotRowsRef.current;
+    let lastReferenceLayout = presetOneReferenceRef.current;
     let lastSpacing = symbolSpacingRef.current;
     let lastFlatSymbols = flatSymbolsRef.current;
     let lastSampleTime = 0;
@@ -1532,7 +1746,156 @@ export function ThreeViewport({
       lastAudioWaveRows = rows;
     };
 
+    const updateReferenceProcessedFrame = (timestamp: number) => {
+      if (!processedContext) {
+        return;
+      }
+
+      if (timestamp - lastTextureTime < 33) {
+        return;
+      }
+      lastTextureTime = timestamp;
+
+      const currentVideo = videoElementRef.current;
+      const shouldShowVideoFrame = videoFrameVisibleRef.current;
+      const canUseVideo =
+        shouldShowVideoFrame &&
+        currentVideo &&
+        (currentVideo.src || currentVideo.srcObject) &&
+        currentVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+        currentVideo.videoWidth > 0 &&
+        currentVideo.videoHeight > 0;
+      const videoCurveLookup = videoCurveLookupRef.current;
+      const useGrayscale = grayscaleVideoRef.current;
+
+      if (canUseVideo && currentVideo) {
+        if (currentVideo.currentTime < lastVideoTime - 0.35) {
+          loopTailContext?.drawImage(processedCanvas, 0, 0);
+          loopCrossfadeStartedAt = timestamp;
+        }
+        lastVideoTime = currentVideo.currentTime;
+      } else {
+        lastVideoTime = 0;
+        loopCrossfadeStartedAt = null;
+      }
+
+      processedContext.save();
+      processedContext.clearRect(0, 0, processedCanvas.width, processedCanvas.height);
+      processedContext.imageSmoothingEnabled = true;
+      processedContext.imageSmoothingQuality = "high";
+
+      if (canUseVideo) {
+        const zoom = Math.max(1, minimumVideoZoomRef.current, videoZoomRef.current);
+        const sourceWidth = Math.max(currentVideo.videoWidth, 1);
+        const sourceHeight = Math.max(currentVideo.videoHeight, 1);
+        const coverScale = Math.max(
+          processedCanvas.width / sourceWidth,
+          processedCanvas.height / sourceHeight,
+        );
+        const width = sourceWidth * coverScale * zoom;
+        const height = sourceHeight * coverScale * zoom;
+        const x = (processedCanvas.width - width) / 2;
+        const y = (processedCanvas.height - height) * videoVerticalCropPositionRef.current;
+        if (mirrorVideoRef.current) {
+          processedContext.translate(processedCanvas.width, 0);
+          processedContext.scale(-1, 1);
+        }
+        processedContext.drawImage(currentVideo, x, y, width, height);
+      } else if (!shouldShowVideoFrame) {
+        drawAudioGuideFrame(
+          processedContext,
+          processedCanvas.width,
+          processedCanvas.height,
+          audioGradientColorsRef.current,
+          videoCurveLookup,
+          useGrayscale,
+        );
+      } else if (idleCanvasRef.current) {
+        processedContext.drawImage(idleCanvasRef.current, 0, 0, processedCanvas.width, processedCanvas.height);
+      }
+
+      processedContext.restore();
+
+      if (canUseVideo || useGrayscale || videoGradientEnabledRef.current) {
+        const imageData = processedContext.getImageData(0, 0, processedCanvas.width, processedCanvas.height);
+        const pixels = imageData.data;
+        const videoGradientStops = audioGradientStopsRef.current.map((stop) => ({
+          color: new THREE.Color(stop.color),
+          offset: stop.offset,
+        }));
+        const shouldApplyVideoGradient = videoGradientEnabledRef.current && videoGradientStops.length >= 2;
+
+        for (let index = 0; index < pixels.length; index += 4) {
+          let red = pixels[index] / 255;
+          let green = pixels[index + 1] / 255;
+          let blue = pixels[index + 2] / 255;
+
+          if (useGrayscale) {
+            const luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722;
+            red = luminance;
+            green = luminance;
+            blue = luminance;
+          }
+
+          if (useGrayscale) {
+            const adjusted = sampleCurveLookup(videoCurveLookup, red);
+            if (shouldApplyVideoGradient) {
+              sampleGradientColor(videoGradientStops, adjusted, videoGradientColorValue);
+              const gradientLuminance =
+                videoGradientColorValue.r * 0.2126 +
+                videoGradientColorValue.g * 0.7152 +
+                videoGradientColorValue.b * 0.0722;
+              pixels[index] = Math.round(gradientLuminance * 255);
+              pixels[index + 1] = Math.round(gradientLuminance * 255);
+              pixels[index + 2] = Math.round(gradientLuminance * 255);
+              continue;
+            }
+
+            pixels[index] = Math.round(adjusted * 255);
+            pixels[index + 1] = Math.round(adjusted * 255);
+            pixels[index + 2] = Math.round(adjusted * 255);
+            continue;
+          }
+
+          const luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722;
+          const adjustedLuminance = sampleCurveLookup(videoCurveLookup, luminance);
+          if (shouldApplyVideoGradient) {
+            sampleGradientColor(videoGradientStops, adjustedLuminance, videoGradientColorValue);
+            pixels[index] = Math.round(clamp01(videoGradientColorValue.r) * 255);
+            pixels[index + 1] = Math.round(clamp01(videoGradientColorValue.g) * 255);
+            pixels[index + 2] = Math.round(clamp01(videoGradientColorValue.b) * 255);
+            continue;
+          }
+
+          const luminanceScale = adjustedLuminance / Math.max(0.001, luminance);
+          pixels[index] = Math.round(clamp01(red * luminanceScale) * 255);
+          pixels[index + 1] = Math.round(clamp01(green * luminanceScale) * 255);
+          pixels[index + 2] = Math.round(clamp01(blue * luminanceScale) * 255);
+        }
+
+        processedContext.putImageData(imageData, 0, 0);
+      }
+
+      if (loopCrossfadeStartedAt !== null) {
+        const progress = Math.min(1, (timestamp - loopCrossfadeStartedAt) / LOOP_CROSSFADE_MS);
+        if (progress < 1) {
+          processedContext.save();
+          processedContext.globalAlpha = 1 - progress;
+          processedContext.drawImage(loopTailCanvas, 0, 0);
+          processedContext.restore();
+        } else {
+          loopCrossfadeStartedAt = null;
+        }
+      }
+
+      processedTexture.needsUpdate = true;
+    };
+
     const updateProcessedFrame = (timestamp: number) => {
+      if (presetOneReferenceRef.current && !imageElementRef.current) {
+        updateReferenceProcessedFrame(timestamp);
+        return;
+      }
       if (!processedContext) {
         return;
       }
@@ -1559,6 +1922,13 @@ export function ThreeViewport({
         currentVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
         currentVideo.videoWidth > 0 &&
         currentVideo.videoHeight > 0;
+      // A loop/seek can briefly have no decoded frame. Keep the last image;
+      // replacing it with the idle graphic creates false motion across the
+      // entire background and repeatedly wakes resting collisions.
+      if (shouldShowVideoFrame && !canUseImage && currentVideo
+        && (currentVideo.src || currentVideo.srcObject) && !canUseVideo) {
+        return;
+      }
       const videoCurveLookup = videoCurveLookupRef.current;
       const useGrayscale = grayscaleVideoRef.current;
 
@@ -1707,11 +2077,13 @@ export function ThreeViewport({
       const spacing = symbolSpacingRef.current;
       const flatSymbols = flatSymbolsRef.current;
       if (
+        presetOneReferenceRef.current !== lastReferenceLayout ||
         columns !== lastColumns ||
         rows !== lastRows ||
         Math.abs(spacing - lastSpacing) > 0.001 ||
         flatSymbols !== lastFlatSymbols
       ) {
+        lastReferenceLayout = presetOneReferenceRef.current;
         lastColumns = columns;
         lastRows = rows;
         lastSpacing = spacing;
@@ -2033,7 +2405,8 @@ export function ThreeViewport({
       }
 
       if (collisionsEnabledRef.current) {
-        resolveInstanceCollisions(
+        const solveCollisions = presetOneReferenceRef.current ? resolvePresetOneCollisions : resolveInstanceCollisions;
+        solveCollisions(
           dotGrid,
           columns * rows,
           useNeutralAudioOnlySymbols && liveAudioResponseDelayRef.current <= 0.001,

@@ -1577,6 +1577,7 @@ function CurvesEditor({ onPointsChange, onPresetChange, points, preset }: Curves
 
 function App() {
   const [initialSettings] = useState(readStoredSettings);
+  const [presetOneReference, setPresetOneReference] = useState(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const audioInputRef = useRef<HTMLInputElement | null>(null);
   const modelInputRef = useRef<HTMLInputElement | null>(null);
@@ -2345,6 +2346,7 @@ function App() {
       return;
     }
 
+    setPresetOneReference(false);
     selectedTopPresetIndexRef.current = -1;
     presetLiveAudioRestoreRef.current = null;
     applySettings(preset.settings);
@@ -2392,6 +2394,7 @@ function App() {
   };
 
   const handleApplyTopPreset = async (preset: ScenePreset, index: number) => {
+    setPresetOneReference(index === 0);
     selectedTopPresetIndexRef.current = index;
     presetLiveAudioRestoreRef.current = null;
     const slot = index + 1;
@@ -2446,6 +2449,7 @@ function App() {
     const settings = {
       ...resolvedSettings,
       ...midiPresetValuesRef.current[index],
+      ...(slot === 1 ? { symbolScale: 128, symbolSpacing: 175 } : {}),
       ...(slot === 3 ? { dotColumns: 15, dotRows: 12 } : {}),
       sourceKind: slot === 3 ? "live-audio" as const : resolvedSettings.sourceKind,
     };
@@ -2912,6 +2916,8 @@ function App() {
     void handleStartPresetRunnerVideo(false).then(() => {
       applySettings({
         ...preset1Settings,
+        symbolScale: 128,
+        symbolSpacing: 175,
         audioBackgroundColor: DEFAULT_RED_GRADIENT_STOPS[0].color,
         audioForegroundColor: DEFAULT_RED_GRADIENT_STOPS[DEFAULT_RED_GRADIENT_STOPS.length - 1].color,
         audioGradientColors: DEFAULT_RED_GRADIENT_STOPS.map((stop) => stop.color),
@@ -2939,6 +2945,7 @@ function App() {
   return (
     <main className="studio-app" data-sidebar-visible={sidebarVisible}>
       <ThreeViewport
+        presetOneReference={presetOneReference}
         audioBackgroundColor={audioBackgroundColor}
         audioEffectIntensity={audioEffectIntensity / 100}
         environmentIntensity={environmentIntensity / 100}
@@ -2982,7 +2989,7 @@ function App() {
         symbolSpacing={symbolSpacing / 100}
         symbolModelSource={symbolModelSource}
         symbolPrimitive={symbolPrimitive}
-        symbolScale={(symbolScale / 100) * SYMBOL_SCALE_RENDER_FACTOR}
+        symbolScale={(symbolScale / 100) * (presetOneReference ? 1 : SYMBOL_SCALE_RENDER_FACTOR)}
         symbolRevision={symbolRevision}
         videoCurvePoints={videoCurvePoints}
         videoElement={videoElement}
