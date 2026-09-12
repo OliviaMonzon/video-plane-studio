@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="GcodeTools">
+  <rect width="48" height="48" rx="10" fill="#101010"/>
+  <path d="M14 31.5h20M17 24h14M21 16.5h6" fill="none" stroke="#d8d8d8" stroke-linecap="round" stroke-width="3"/>
+  <circle cx="14" cy="31.5" r="3" fill="#6f6f6f"/>
+  <circle cx="31" cy="24" r="3" fill="#9a9a9a"/>
+  <circle cx="27" cy="16.5" r="3" fill="#c8c8c8"/>
+</svg>

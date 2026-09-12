@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 49.5 54.23">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: none;
+        stroke: #000;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 4px;
+      }
+
+      .cls-2 {
+        opacity: .4;
+      }
+
+      .cls-3 {
+        fill: #000;
+      }
+    </style>
+  </defs>
+  <g id="Layer_1-2" data-name="Layer 1">
+    <g>
+      <!-- Inner filled shape representing the model -->
+      <polygon class="cls-2" points="14.67 20.44 14.67 34.01 24.67 40.79 34.67 34.01 34.67 20.44 24.67 13.66 14.67 20.44"/>
+
+      <!-- Outer FFD lattice -->
+      <g class="cls-2">
+        <polygon class="cls-1" points="4.26 15.44 4.26 39.01 24.67 50.79 45.08 39.01 45.08 15.44 24.67 3.66 4.26 15.44"/>
+        <polygon class="cls-1" points="24.67 51.25 4.26 39.31 4.26 15.44 24.67 27.38 24.67 51.25"/>
+        <polygon class="cls-1" points="24.67 51.25 45.08 39.31 45.08 15.44 24.67 27.38 24.67 51.25"/>
+      </g>
+
+      <!-- Control points -->
+      <circle class="cls-3" cx="24.65" cy="26.97" r="4.35"/>
+      <circle class="cls-3" cx="24.65" cy="49.88" r="4.35"/>
+      <circle class="cls-3" cx="4.35" cy="39.16" r="4.35"/>
+      <circle class="cls-3" cx="4.35" cy="16.03" r="4.35"/>
+      <circle class="cls-3" cx="24.65" cy="4.35" r="4.35"/>
+      <circle class="cls-3" cx="45.15" cy="16.03" r="4.35"/>
+      <circle class="cls-3" cx="45.15" cy="39.16" r="4.35"/>
+    </g>
+  </g>
+</svg>

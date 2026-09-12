@@ -1,0 +1,398 @@
+[
+  {
+    "createdAt": 1788657908553,
+    "id": "starter-preset-1",
+    "name": "Default 1",
+    "settings": {
+      "audioBackgroundColor": "#ffffff",
+      "audioEffectIntensity": 100,
+      "audioForegroundColor": "#050505",
+      "audioGradientColors": [
+        "#ffffff",
+        "#050505"
+      ],
+      "audioGradientStops": [
+        {
+          "color": "#ffffff",
+          "offset": 0
+        },
+        {
+          "color": "#050505",
+          "offset": 100
+        }
+      ],
+      "collisionsEnabled": true,
+      "dynamicallyAwareCollision": false,
+      "dynamicCollisionResponse": 100,
+      "environmentIntensity": 15,
+      "environmentRotationX": 241,
+      "environmentRotationY": 142,
+      "environmentRotationZ": 0,
+      "fillLightColor": "#ffffff",
+      "fillLightIntensity": 103,
+      "dotColumns": 83,
+      "dotRows": 88,
+      "effectVisible": true,
+      "flatSymbols": false,
+      "floorVisible": false,
+      "grayscaleVideo": false,
+      "luminositySizing": true,
+      "luminosityZSeparation": 0,
+      "randomPositionX": 0,
+      "randomPositionY": 0,
+      "randomPositionZ": 0,
+      "randomRotationX": 0,
+      "randomRotationY": 0,
+      "randomRotationZ": 0,
+      "randomScale": 0,
+      "screenVisible": false,
+      "showHdriBackground": false,
+      "sourceKind": "file",
+      "symbolPrimitive": "sphere",
+      "symbolScale": 130,
+      "symbolSpacing": 175,
+      "videoCurvePoints": [
+        {
+          "anchor": {
+            "x": 0,
+            "y": 100
+          },
+          "handleIn": {
+            "x": 0,
+            "y": 100
+          },
+          "handleOut": {
+            "x": 33,
+            "y": 67
+          },
+          "mode": "smooth"
+        },
+        {
+          "anchor": {
+            "x": 52.882339015151516,
+            "y": 63.63037109375001
+          },
+          "handleIn": {
+            "x": 39.90885416666667,
+            "y": 90.0537109375
+          },
+          "handleOut": {
+            "x": 65.85582386363636,
+            "y": 37.207031250000014
+          },
+          "mode": "smooth"
+        },
+        {
+          "anchor": {
+            "x": 100,
+            "y": 0
+          },
+          "handleIn": {
+            "x": 45.08562184343434,
+            "y": 23.544921875
+          },
+          "handleOut": {
+            "x": 154.91437815656565,
+            "y": -23.544921875
+          },
+          "mode": "smooth"
+        }
+      ],
+      "videoCurvePreset": "custom",
+      "videoGradientEnabled": false,
+      "videoZoom": 100
+    }
+  },
+  {
+    "createdAt": 1788657908554,
+    "id": "starter-preset-2",
+    "name": "Default 2",
+    "settings": {
+      "audioBackgroundColor": "#F8FBFF",
+      "audioEffectIntensity": 100,
+      "audioForegroundColor": "#260014",
+      "audioGradientColors": [
+        "#F8FBFF",
+        "#56F97A",
+        "#8200FF",
+        "#260014"
+      ],
+      "audioGradientStops": [
+        {
+          "color": "#F8FBFF",
+          "offset": 0
+        },
+        {
+          "color": "#56F97A",
+          "offset": 33
+        },
+        {
+          "color": "#8200FF",
+          "offset": 68
+        },
+        {
+          "color": "#260014",
+          "offset": 100
+        }
+      ],
+      "collisionsEnabled": false,
+      "dynamicallyAwareCollision": false,
+      "dynamicCollisionResponse": 100,
+      "environmentIntensity": 29,
+      "environmentRotationX": 18,
+      "environmentRotationY": 43,
+      "environmentRotationZ": 64,
+      "fillLightColor": "#caf0fe",
+      "fillLightIntensity": 98,
+      "dotColumns": 32,
+      "dotRows": 36,
+      "effectVisible": true,
+      "flatSymbols": false,
+      "floorVisible": false,
+      "grayscaleVideo": false,
+      "luminositySizing": true,
+      "luminosityZSeparation": 20,
+      "randomPositionX": 103,
+      "randomPositionY": 0,
+      "randomPositionZ": 15,
+      "randomRotationX": 0,
+      "randomRotationY": 0,
+      "randomRotationZ": 0,
+      "randomScale": 0,
+      "screenVisible": false,
+      "showHdriBackground": false,
+      "sourceKind": "webcam",
+      "symbolPrimitive": "sphere",
+      "symbolScale": 220,
+      "symbolSpacing": 130,
+      "videoCurvePoints": [
+        {
+          "anchor": {
+            "x": 0,
+            "y": 100
+          },
+          "handleIn": {
+            "x": 0,
+            "y": 100
+          },
+          "handleOut": {
+            "x": 33,
+            "y": 67
+          },
+          "mode": "smooth"
+        },
+        {
+          "anchor": {
+            "x": 100,
+            "y": 0
+          },
+          "handleIn": {
+            "x": 67,
+            "y": 33
+          },
+          "handleOut": {
+            "x": 100,
+            "y": 0
+          },
+          "mode": "smooth"
+        }
+      ],
+      "videoCurvePreset": "linear",
+      "videoGradientEnabled": false,
+      "videoZoom": 100
+    }
+  },
+  {
+    "createdAt": 1788657908555,
+    "id": "starter-preset-3",
+    "name": "Default 3",
+    "settings": {
+      "audioBackgroundColor": "#1264CF",
+      "audioEffectIntensity": 68,
+      "audioForegroundColor": "#260014",
+      "audioGradientColors": [
+        "#1264CF",
+        "#56F97A",
+        "#8200FF",
+        "#260014"
+      ],
+      "audioGradientStops": [
+        {
+          "color": "#1264CF",
+          "offset": 0
+        },
+        {
+          "color": "#56F97A",
+          "offset": 33
+        },
+        {
+          "color": "#8200FF",
+          "offset": 68
+        },
+        {
+          "color": "#260014",
+          "offset": 100
+        }
+      ],
+      "collisionsEnabled": true,
+      "dynamicallyAwareCollision": false,
+      "dynamicCollisionResponse": 100,
+      "environmentIntensity": 29,
+      "environmentRotationX": 0,
+      "environmentRotationY": 0,
+      "environmentRotationZ": 226,
+      "fillLightColor": "#ffffff",
+      "fillLightIntensity": 71,
+      "dotColumns": 15,
+      "dotRows": 12,
+      "effectVisible": true,
+      "flatSymbols": false,
+      "floorVisible": false,
+      "grayscaleVideo": false,
+      "luminositySizing": false,
+      "luminosityZSeparation": 35,
+      "randomPositionX": 171,
+      "randomPositionY": 103,
+      "randomPositionZ": 0,
+      "randomRotationX": 0,
+      "randomRotationY": 0,
+      "randomRotationZ": 0,
+      "randomScale": 199,
+      "screenVisible": false,
+      "showHdriBackground": false,
+      "sourceKind": "live-audio",
+      "symbolPrimitive": "sphere",
+      "symbolScale": 100,
+      "symbolSpacing": 105,
+      "videoCurvePoints": [
+        {
+          "anchor": {
+            "x": 0,
+            "y": 100
+          },
+          "handleIn": {
+            "x": 0,
+            "y": 100
+          },
+          "handleOut": {
+            "x": 33,
+            "y": 67
+          },
+          "mode": "smooth"
+        },
+        {
+          "anchor": {
+            "x": 100,
+            "y": 0
+          },
+          "handleIn": {
+            "x": 67,
+            "y": 33
+          },
+          "handleOut": {
+            "x": 100,
+            "y": 0
+          },
+          "mode": "smooth"
+        }
+      ],
+      "videoCurvePreset": "linear",
+      "videoGradientEnabled": true,
+      "videoZoom": 100
+    }
+  },
+  {
+    "createdAt": 1788657908556,
+    "id": "starter-preset-4",
+    "name": "Default 4",
+    "settings": {
+      "audioBackgroundColor": "#050505",
+      "audioEffectIntensity": 100,
+      "audioForegroundColor": "#ffffff",
+      "audioGradientColors": [
+        "#050505",
+        "#5F5F5F",
+        "#ffffff"
+      ],
+      "audioGradientStops": [
+        {
+          "color": "#050505",
+          "offset": 11
+        },
+        {
+          "color": "#5F5F5F",
+          "offset": 60
+        },
+        {
+          "color": "#ffffff",
+          "offset": 100
+        }
+      ],
+      "collisionsEnabled": true,
+      "dynamicallyAwareCollision": true,
+      "dynamicCollisionResponse": 300,
+      "environmentIntensity": 82,
+      "environmentRotationX": 218,
+      "environmentRotationY": 38,
+      "environmentRotationZ": 14,
+      "fillLightColor": "#ffffff",
+      "fillLightIntensity": 92,
+      "dotColumns": 82,
+      "dotRows": 76,
+      "effectVisible": true,
+      "flatSymbols": true,
+      "floorVisible": false,
+      "grayscaleVideo": true,
+      "luminositySizing": true,
+      "luminosityZSeparation": 100,
+      "randomPositionX": 0,
+      "randomPositionY": 0,
+      "randomPositionZ": 0,
+      "randomRotationX": 0,
+      "randomRotationY": 0,
+      "randomRotationZ": 0,
+      "randomScale": 500,
+      "screenVisible": false,
+      "showHdriBackground": false,
+      "sourceKind": "webcam",
+      "symbolPrimitive": "square",
+      "symbolScale": 25,
+      "symbolSpacing": 50,
+      "videoCurvePoints": [
+        {
+          "anchor": {
+            "x": 0,
+            "y": 100
+          },
+          "handleIn": {
+            "x": 0,
+            "y": 100
+          },
+          "handleOut": {
+            "x": 33,
+            "y": 67
+          },
+          "mode": "smooth"
+        },
+        {
+          "anchor": {
+            "x": 100,
+            "y": 0
+          },
+          "handleIn": {
+            "x": 103.81155303030303,
+            "y": 67.7392578125
+          },
+          "handleOut": {
+            "x": 96.18844696969697,
+            "y": -67.7392578125
+          },
+          "mode": "smooth"
+        }
+      ],
+      "videoCurvePreset": "custom",
+      "videoGradientEnabled": false,
+      "videoZoom": 100
+    }
+  }
+]
