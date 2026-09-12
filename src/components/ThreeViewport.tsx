@@ -1339,10 +1339,10 @@ export function ThreeViewport({
           collisionPositions[offset + 1] = position.y;
           collisionPositions[offset + 2] = position.z;
           collisionInitialized[index] = 1;
-        } else if (skipStartupWarmup) {
-          // Instant live audio should return every instance to its current
-          // audio-driven home transform without inheriting the eased recovery
-          // and residual collision velocity used for video motion.
+        } else if (skipStartupWarmup || !dynamicallyAwareCollisionRef.current) {
+          // Positional collision has no momentum: solve from this frame's home
+          // transforms so displacement cannot accumulate across video loops.
+          // Instant live audio follows the same rule.
           collisionPositions[offset] = position.x;
           collisionPositions[offset + 1] = position.y;
           collisionPositions[offset + 2] = position.z;
@@ -1399,9 +1399,11 @@ export function ThreeViewport({
 
               for (const neighborIndex of neighbors) {
                 const neighborOffset = neighborIndex * 3;
-                let deltaX = x - collisionPositions[neighborOffset];
-                let deltaY = y - collisionPositions[neighborOffset + 1];
-                let deltaZ = z - collisionPositions[neighborOffset + 2];
+                // Earlier neighbors may already have moved this sphere.
+                // Use its current position to avoid compounding stale pushes.
+                let deltaX = collisionPositions[offset] - collisionPositions[neighborOffset];
+                let deltaY = collisionPositions[offset + 1] - collisionPositions[neighborOffset + 1];
+                let deltaZ = collisionPositions[offset + 2] - collisionPositions[neighborOffset + 2];
                 let distance = Math.hypot(deltaX, deltaY, deltaZ);
                 const minimumDistance = collisionRadii[index] + collisionRadii[neighborIndex];
                 if (distance >= minimumDistance) {
